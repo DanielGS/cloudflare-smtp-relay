@@ -2,6 +2,7 @@ package logging
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"strings"
@@ -34,7 +35,7 @@ func TestNew_ValidLevelsProduceJSONLogger(t *testing.T) {
 				t.Fatalf("New(%q) returned a nil logger", tt.level)
 			}
 
-			logger.Log(nil, tt.want, "probe message")
+			logger.Log(context.Background(), tt.want, "probe message")
 
 			if buf.Len() == 0 {
 				t.Fatalf("expected a log line to be written for level %q, got none", tt.level)

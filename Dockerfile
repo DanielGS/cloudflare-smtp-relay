@@ -1,7 +1,14 @@
 # syntax=docker/dockerfile:1
 
 # ---- build stage ------------------------------------------------------------
-FROM golang:1.27-alpine AS build
+# --platform=$BUILDPLATFORM pins the build stage to the host/builder platform so
+# buildx runs it natively for every target, instead of emulating it under QEMU.
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
+
+# TARGETOS/TARGETARCH are set by buildx to the platform being built for
+# (e.g. linux/arm64), independently of the native build platform above.
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /src
 
@@ -12,7 +19,8 @@ RUN go mod download
 COPY . .
 
 # CGO is disabled so the binary is fully static and can run on a scratch-like base.
-RUN CGO_ENABLED=0 GOOS=linux go build \
+# GOOS/GOARCH cross-compile natively for the target platform, so no QEMU is needed.
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
         -trimpath \
         -ldflags="-s -w" \
         -o /out/relay \

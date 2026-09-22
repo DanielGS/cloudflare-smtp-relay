@@ -4,9 +4,10 @@
 
 **An SMTP submission server for apps that only speak SMTP, delivering through the Cloudflare Email Service HTTP API.**
 
+[![CI](https://github.com/DanielGS/cloudflare-smtp-relay/actions/workflows/ci.yml/badge.svg)](https://github.com/DanielGS/cloudflare-smtp-relay/actions/workflows/ci.yml)
 [![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](#license)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](#quick-start)
+[![Docker](https://img.shields.io/badge/ghcr.io-cloudflare--smtp--relay-2496ED?logo=docker&logoColor=white)](https://github.com/DanielGS/cloudflare-smtp-relay/pkgs/container/cloudflare-smtp-relay)
 [![Dependencies](https://img.shields.io/badge/runtime%20deps-none-lightgrey.svg)](#scope)
 
 </div>
@@ -114,6 +115,27 @@ docker compose up --build
 
 The relay listens on `2525` (SMTP) and `8080` (health) on a Docker network named `mail`.
 **Neither port is published to the host by default** — containers reach it by service name.
+
+### Using the prebuilt image
+
+Every push to `main` publishes a multi-arch image (`linux/amd64`, `linux/arm64`) to GitHub
+Container Registry, so you do not have to build it yourself:
+
+```bash
+docker pull ghcr.io/danielgs/cloudflare-smtp-relay:latest
+```
+
+To use it instead of a local build, swap `build: .` for `image:` in `docker-compose.yml`:
+
+```yaml
+services:
+  cloudflare-smtp-relay:
+    image: ghcr.io/danielgs/cloudflare-smtp-relay:latest
+```
+
+Tagged releases (`v1.2.3`) also publish `1.2.3` and `1.2`. Pin one of those in production
+rather than tracking `latest`.
+
 
 Confirm it is alive:
 

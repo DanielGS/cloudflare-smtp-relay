@@ -27,9 +27,14 @@ linters:
 
   exclusions:
     rules:
+      # Test code holds itself to a different standard than production code:
+      # errors on cleanup are irrelevant to the assertion under test, and
+      # httptest servers are addressed with the package-level http helpers.
       - path: _test\.go
         linters:
           - gosec
+          - errcheck
+          - noctx
 
 formatters:
   enable:

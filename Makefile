@@ -2,6 +2,9 @@ BINARY := relay
 PKG    := ./...
 IMAGE  := cloudflare-smtp-relay
 
+# Pinned so `make lint` and CI run the identical linter version.
+GOLANGCI := github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+
 .DEFAULT_GOAL := help
 
 .PHONY: help
@@ -23,13 +26,9 @@ cover: ## Run tests and open an HTML coverage report
 	go tool cover -html=coverage.out -o coverage.html
 
 .PHONY: lint
-lint: ## Run go vet, plus golangci-lint when it is installed
+lint: ## Run go vet and golangci-lint at the version CI uses
 	go vet $(PKG)
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run; \
-	else \
-		echo "golangci-lint not installed - skipping. Install: https://golangci-lint.run/welcome/install/"; \
-	fi
+	go run $(GOLANGCI) run
 
 .PHONY: tidy
 tidy: ## Sync go.mod and go.sum
