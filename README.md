@@ -1,53 +1,157 @@
-# smtp-cloudflare-relay
+<div align="center">
 
-A small SMTP submission server that accepts mail from applications which only speak SMTP and
-delivers it through the Cloudflare Email Service HTTP API.
+# cloudflare-smtp-relay
 
-```text
-your app  ──SMTP (plaintext, private network)──▶  smtp-cloudflare-relay
-                                                          │
-                                                          │ HTTPS
-                                                          ▼
-                                                  Cloudflare Email Service
-                                                          │
-                                                          ▼
-                                                      recipient
+**An SMTP submission server for apps that only speak SMTP, delivering through the Cloudflare Email Service HTTP API.**
+
+[![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](#license)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](#quick-start)
+[![Dependencies](https://img.shields.io/badge/runtime%20deps-none-lightgrey.svg)](#scope)
+
+</div>
+
+```mermaid
+flowchart LR
+    subgraph net["Your private network"]
+        app["Your app<br/>SMTP client"]
+        relay["cloudflare-smtp-relay<br/>:2525 SMTP · :8080 health"]
+    end
+
+    subgraph cf["Cloudflare"]
+        direction TB
+        rest["Email Sending<br/>REST API"]
+        wrk["Worker<br/>send_email binding"]
+        routing["Email Routing"]
+    end
+
+    box["Recipient"]
+
+    app -- "SMTP AUTH" --> relay
+    relay -- "HTTPS · rest" --> rest
+    relay -- "HTTPS · worker" --> wrk
+    rest --> routing
+    wrk --> routing
+    routing --> box
+
+    classDef svc fill:#dbeafe,stroke:#2563eb,stroke-width:1px,color:#0b1220
+    classDef ext fill:#fef3c7,stroke:#d97706,stroke-width:1px,color:#0b1220
+    classDef out fill:#dcfce7,stroke:#16a34a,stroke-width:1px,color:#0b1220
+    class app,relay svc
+    class rest,wrk,routing ext
+    class box out
+    style net fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:4 3,color:#334155
+    style cf fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:4 3,color:#334155
 ```
 
-It exists because Cloudflare's own SMTP endpoint (`smtp.mx.cloudflare.net:465`) requires a
-domain onboarded to Email Sending, which is gated behind the Workers Paid plan, while the HTTP
-surface can deliver to verified destination addresses for free. The relay also keeps the
-Cloudflare API token in one place instead of distributing it to every application, and enforces
-a sender-domain allowlist centrally.
+One process, no database, no queue. Your application keeps sending SMTP; the Cloudflare token
+lives in exactly one place.
 
 ---
 
-## Before you start
+## Table of Contents
 
-Cloudflare-side setup is required regardless of this relay.
+- [Why this exists](#why-this-exists)
+- [Quick start](#quick-start)
+- [Cloudflare setup](#cloudflare-setup)
+- [Connecting an application](#connecting-an-application)
+- [Configuration](#configuration)
+- [How the relay answers your client](#how-the-relay-answers-your-client)
+- [Logging](#logging)
+- [Health](#health)
+- [Verifying an end-to-end send](#verifying-an-end-to-end-send)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [Scope](#scope)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
+
+---
+
+## Why this exists
+
+Cloudflare's own SMTP endpoint (`smtp.mx.cloudflare.net:465`) requires a domain onboarded to
+Email Sending, which is gated behind the Workers Paid plan. The HTTP surface can deliver to
+verified destination addresses for free.
+
+So this relay translates one to the other, and picks up three things along the way:
+
+| Problem | What the relay does |
+|---|---|
+| Your app only speaks SMTP | Accepts SMTP submission, speaks HTTPS upstream |
+| The Cloudflare token would be copied into every app | Keeps it in one process |
+| Any app could send as any domain | Enforces a sender-domain allowlist centrally |
+
+---
+
+## Quick start
+
+> **Prerequisite:** the Cloudflare side must be configured first — see
+> [Cloudflare setup](#cloudflare-setup). It takes about five minutes and decides one
+> environment variable.
+
+```bash
+git clone https://github.com/DanielGS/cloudflare-smtp-relay.git
+cd cloudflare-smtp-relay
+cp .env.example .env
+```
+
+Edit `.env` and set at minimum:
+
+```env
+SMTP_PASSWORD=<a long random string>
+CLOUDFLARE_ACCOUNT_ID=<your account id>
+CLOUDFLARE_API_TOKEN=<token with Email Sending: Edit>
+ALLOWED_FROM_DOMAINS=subdomain.mydomainexample.com
+```
+
+Then:
+
+```bash
+docker compose up --build
+```
+
+The relay listens on `2525` (SMTP) and `8080` (health) on a Docker network named `mail`.
+**Neither port is published to the host by default** — containers reach it by service name.
+
+Confirm it is alive:
+
+```bash
+docker compose exec cloudflare-smtp-relay /relay -healthcheck
+```
+
+---
+
+## Cloudflare setup
+
+Required regardless of this relay. Four steps, in order.
 
 ### 1. Enable Email Routing on the exact sending domain
 
-A subdomain does **not** inherit Email Routing from the apex domain. If you intend to send from
+A subdomain does **not** inherit Email Routing from the apex domain. To send from
 `subdomain.mydomainexample.com`, add it explicitly:
 
-Dashboard → **Email Routing** on `mydomainexample.com` → **Settings** → **Subdomains** → add
-`subdomain.mydomainexample.com`. Cloudflare adds the required DNS records.
+> Dashboard → **Email Routing** on `mydomainexample.com` → **Settings** → **Subdomains** →
+> add `subdomain.mydomainexample.com`
 
-This is the most common cause of `Email sending is not enabled for domain …`.
+Cloudflare adds the required DNS records. Skipping this is the most common cause of
+`Email sending is not enabled for domain …`.
 
 ### 2. Verify your destination addresses
 
-Dashboard → **Email Routing** → **Destination addresses**. On the free tier you can only send
-to addresses verified here. Sending to arbitrary recipients requires the Workers Paid plan.
+> Dashboard → **Email Routing** → **Destination addresses**
+
+On the free tier you can only send **to** addresses verified here. Arbitrary recipients
+require the Workers Paid plan.
 
 ### 3. Create an API token
 
 An API token with the **Email Sending: Edit** permission.
 
-### 4. Probe which transport you can use
+### 4. Probe which transport your account can use
 
-Run this once. It decides how you configure the relay.
+This single request decides whether you need the Worker.
 
 ```bash
 curl -i "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/email/sending/send" \
@@ -61,28 +165,52 @@ curl -i "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/email/send
   }'
 ```
 
-| Response | What to set |
-|---|---|
-| `200` with `"success": true` | `CLOUDFLARE_TRANSPORT=rest`. Nothing else needed. |
-| `403` with `10105 not_entitled` or `10203 sending_disabled` | `CLOUDFLARE_TRANSPORT=worker`, and deploy the Worker in [`worker/`](worker/). |
-| `403` with `10102 forbidden` | The token lacks the Email Sending permission. Fix the token. |
+```mermaid
+flowchart TD
+    probe{"Probe response"}
+    probe -- "200 · success: true" --> rest["CLOUDFLARE_TRANSPORT=rest<br/>nothing else to do"]
+    probe -- "403 · not_entitled<br/>403 · sending_disabled" --> wrk["CLOUDFLARE_TRANSPORT=worker<br/>deploy worker/"]
+    probe -- "403 · forbidden" --> tok["Token lacks<br/>Email Sending: Edit<br/>fix it, probe again"]
+
+    classDef q fill:#f1f5f9,stroke:#64748b,color:#0b1220
+    classDef good fill:#dcfce7,stroke:#16a34a,color:#0b1220
+    classDef warn fill:#fef3c7,stroke:#d97706,color:#0b1220
+    classDef bad fill:#fee2e2,stroke:#dc2626,color:#0b1220
+    class probe q
+    class rest good
+    class wrk warn
+    class tok bad
+```
+
+<details>
+<summary><b>Worker transport — when the probe says you need it</b></summary>
+
+The Email Routing `send_email` binding works on any plan, unlike the REST surface. The Worker
+in [`worker/`](worker/) exposes that binding over HTTP so the relay, running outside
+Cloudflare, can reach it.
+
+```bash
+cd worker
+npx wrangler deploy
+npx wrangler secret put RELAY_SECRET   # openssl rand -hex 32
+```
+
+```env
+CLOUDFLARE_TRANSPORT=worker
+WORKER_URL=https://smtp-relay-sender.<your-subdomain>.workers.dev
+WORKER_SECRET=<the same random string>
+```
+
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are unused in this mode. Full contract and
+security notes: [`worker/README.md`](worker/README.md).
+
+</details>
 
 ---
 
-## Quick start
+## Connecting an application
 
-```bash
-cp .env.example .env
-# edit .env: SMTP_PASSWORD, CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, ALLOWED_FROM_DOMAINS
-docker compose up --build
-```
-
-The relay listens on `2525` for SMTP and `8080` for health, on a Docker network named `mail`.
-By default neither port is published to the host: containers reach it by service name.
-
-### Connecting an application
-
-Add your application to the same network:
+Put your app on the same network:
 
 ```yaml
 services:
@@ -96,10 +224,10 @@ networks:
     external: true
 ```
 
-Then point it at the relay:
+Point it at the relay:
 
 ```env
-SMTP_HOST=smtp-cloudflare-relay
+SMTP_HOST=cloudflare-smtp-relay
 SMTP_PORT=2525
 SMTP_USER=relay
 SMTP_PASSWORD=change-me
@@ -133,7 +261,7 @@ Every setting comes from an environment variable. Nothing is baked into the imag
 
 | Variable | Default | Notes |
 |---|---|---|
-| `CLOUDFLARE_TRANSPORT` | `rest` | `rest` or `worker`. See the probe above. |
+| `CLOUDFLARE_TRANSPORT` | `rest` | `rest` or `worker`. See [the probe](#4-probe-which-transport-your-account-can-use). |
 | `CLOUDFLARE_ACCOUNT_ID` | *(required for `rest`)* | |
 | `CLOUDFLARE_API_TOKEN` | *(required for `rest`)* | Never logged. |
 | `CLOUDFLARE_API_BASE_URL` | `https://api.cloudflare.com/client/v4` | Override for testing. |
@@ -152,37 +280,36 @@ Every setting comes from an environment variable. Nothing is baked into the imag
 
 ---
 
-## How results are reported back to the client
+## How the relay answers your client
 
-The relay does not collapse every failure into `550`. It distinguishes what is worth retrying
-from what is not, so a transient Cloudflare problem never causes a client to discard a valid
-message.
+The relay does not collapse every failure into `550`. It separates what is worth retrying from
+what is not, so a transient Cloudflare problem never makes a client discard a valid message.
 
 | Situation | SMTP reply |
 |---|---|
-| Cloudflare accepted the message | `250 2.0.0` |
-| Rate limited (`429`) | `451 4.4.5`, honoring `Retry-After` |
-| Cloudflare server error (`500`, `503`) | `451 4.3.0` |
-| Timeout, DNS or network failure, unreadable response | `451 4.4.1` |
-| Authentication or entitlement failure (`401`, `403`) | `451 4.7.0` — see note below |
-| Malformed message rejected by Cloudflare (`400`) | `550 5.6.0` |
-| Account or resource not found (`404`) | `550 5.1.2` |
-| Sender outside `ALLOWED_FROM_DOMAINS` | `550 5.7.1`, refused at `MAIL FROM` |
-| Message above the size limit | `552 5.3.4` |
-| Bad SMTP credentials | `535 5.7.8` |
+| ✅ Cloudflare accepted the message | `250 2.0.0` |
+| ⏳ Rate limited (`429`) | `451 4.4.5`, honoring `Retry-After` |
+| ⏳ Cloudflare server error (`500`, `503`) | `451 4.3.0` |
+| ⏳ Timeout, DNS or network failure, unreadable response | `451 4.4.1` |
+| ⏳ Authentication or entitlement failure (`401`, `403`) | `451 4.7.0` — see below |
+| ❌ Malformed message rejected by Cloudflare (`400`) | `550 5.6.0` |
+| ❌ Account or resource not found (`404`) | `550 5.1.2` |
+| ❌ Sender outside `ALLOWED_FROM_DOMAINS` | `550 5.7.1`, refused at `MAIL FROM` |
+| ❌ Message above the size limit | `552 5.3.4` |
+| ❌ Bad SMTP credentials | `535 5.7.8` |
 
-**Why `401`/`403` are temporary.** A bad or unentitled token is a fault in the relay's
-configuration, not in the message. Answering `550` would make the client throw away a perfectly
-valid email. Answering `451` makes it retry, so the message goes out on its own once the token
-is fixed. Retries are attempted only for genuinely temporary conditions, never for a permanent
-rejection.
+> **Why `401`/`403` are temporary.** A bad or unentitled token is a fault in the relay's
+> configuration, not in the message. Answering `550` would make the client throw away a
+> perfectly valid email. Answering `451` makes it retry, so the message goes out on its own
+> once the token is fixed. Retries are attempted only for genuinely temporary conditions,
+> never for a permanent rejection.
 
 ---
 
 ## Logging
 
-One structured JSON record per message, at `info` (or `warn`/`error` when deferred or
-rejected):
+One structured JSON record per message, at `info` — or `warn`/`error` when deferred or
+rejected:
 
 ```json
 {
@@ -201,8 +328,8 @@ rejected):
 }
 ```
 
-Never logged: the message body, the Cloudflare API token, the SMTP password, the Worker secret.
-Subjects are truncated to 120 characters.
+**Never logged:** the message body, the Cloudflare API token, the SMTP password, the Worker
+secret. Subjects are truncated to 120 characters.
 
 ---
 
@@ -217,8 +344,69 @@ The endpoint reports process liveness only and exposes no configuration. The con
 has no shell and no `curl`, so the Docker `HEALTHCHECK` invokes the binary's own probe mode:
 
 ```bash
-docker compose exec smtp-cloudflare-relay /relay -healthcheck
+docker compose exec cloudflare-smtp-relay /relay -healthcheck
 ```
+
+---
+
+## Verifying an end-to-end send
+
+From a container on the `mail` network, using `swaks`:
+
+```bash
+docker run --rm --network mail instrumentisto/swaks \
+  --server cloudflare-smtp-relay:2525 \
+  --auth PLAIN --auth-user relay --auth-password change-me \
+  --from no-reply@subdomain.mydomainexample.com \
+  --to your-verified-destination@example.com \
+  --header "Subject: relay test" \
+  --body "hello from the relay"
+```
+
+Expect `250` and one log line with `"result":"sent"`.
+
+Worth checking the rejection paths too:
+
+- [ ] Wrong password → `535`
+- [ ] Sender on another domain → `550`
+- [ ] Attachment over 5 MiB → `552`
+
+---
+
+## Troubleshooting
+
+<details>
+<summary><code>550 5.7.1 Email sending is not enabled for domain …</code></summary>
+
+Cloudflare is rejecting the **sender domain**. Confirm the exact domain or subdomain is added
+under Email Routing → Settings → Subdomains, and that
+[the probe](#4-probe-which-transport-your-account-can-use) succeeds.
+
+</details>
+
+<details>
+<summary><code>403</code> with <code>10105 not_entitled</code> from the probe</summary>
+
+Your account cannot use the Email Sending REST surface. Switch to
+`CLOUDFLARE_TRANSPORT=worker`, or buy the Workers Paid plan.
+
+</details>
+
+<details>
+<summary>Mail accepted by the relay but never delivered</summary>
+
+On the free tier the recipient must be a verified destination address. Check Email Routing →
+Destination addresses.
+
+</details>
+
+<details>
+<summary>Client reports <code>451</code> repeatedly</summary>
+
+Read the logs: `http_status` and `cf_error_code` name the upstream cause. A `401`/`403` there
+means the token is wrong or lacks `Email Sending: Edit`.
+
+</details>
 
 ---
 
@@ -233,62 +421,56 @@ make run      # run locally, sourcing .env
 make up       # docker compose up --build
 ```
 
-Tests use doubles throughout; the Cloudflare API is simulated with `httptest`. No test makes a
-live call.
+Requires Go 1.27+. Tests use doubles throughout; the Cloudflare API is simulated with
+`httptest`. **No test makes a live call.**
 
----
-
-## Verifying an end-to-end send
-
-From a container on the `mail` network, using `swaks`:
-
-```bash
-docker run --rm --network mail instrumentisto/swaks \
-  --server smtp-cloudflare-relay:2525 \
-  --auth PLAIN --auth-user relay --auth-password change-me \
-  --from no-reply@subdomain.mydomainexample.com \
-  --to your-verified-destination@example.com \
-  --header "Subject: relay test" \
-  --body "hello from the relay"
 ```
-
-Expect `250` and one log line with `"result":"sent"`.
-
-Check the rejection paths too:
-
-```bash
-# wrong password           -> 535
-# sender on another domain -> 550
-# attachment over 5 MiB    -> 552
+cmd/relay          entrypoint and wiring
+internal/smtpserver  SMTP submission server, AUTH, session handling
+internal/email       parsing, policy, message model
+internal/cloudflare  REST and Worker transports, error classification
+internal/config      environment parsing, validation, redaction
+internal/logging     structured delivery records
+internal/health      liveness endpoint and probe mode
+worker/              optional Cloudflare Worker transport
 ```
-
----
-
-## Troubleshooting
-
-**`550 5.7.1 Email sending is not enabled for domain …`**
-Cloudflare is rejecting the *sender domain*. Confirm that the exact domain or subdomain is
-added under Email Routing → Settings → Subdomains, and that the probe in step 4 succeeds.
-
-**`403` with `10105 not_entitled` from the probe**
-Your account cannot use the Email Sending REST surface. Switch to
-`CLOUDFLARE_TRANSPORT=worker`, or buy the Workers Paid plan.
-
-**Mail accepted by the relay but never delivered**
-On the free tier the recipient must be a verified destination address. Check Email Routing →
-Destination addresses.
-
-**Client reports `451` repeatedly**
-Read the logs: `http_status` and `cf_error_code` name the upstream cause. A `401`/`403` there
-means the token is wrong or lacks `Email Sending: Edit`.
 
 ---
 
 ## Scope
 
-Not included, by design: mail reception, IMAP/POP3, a persistent queue, unbounded retries, a
-web panel, a database.
+**Included:** SMTP submission, AUTH, sender allowlist, size and recipient limits, two
+Cloudflare transports, bounded retries for temporary failures, structured logs, liveness.
+
+**Not included, by design:** mail reception, IMAP/POP3, a persistent queue, unbounded retries,
+a web panel, a database.
+
+---
+
+## Contributing
+
+Issues and pull requests are welcome. Before opening a PR:
+
+- [ ] `make test` passes
+- [ ] `make lint` passes
+- [ ] New behavior has a test that fails without the change
+- [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
+
+For questions or ideas, open an issue rather than a PR.
+
+---
+
+## Security
+
+Do not report security issues in a public issue. Email the maintainer instead.
+
+The relay is designed to hold secrets and refuse to leak them: tokens and passwords are
+redacted from configuration dumps, never written to logs, and the Worker compares its shared
+secret in constant time. Run it on a private network; it has no TLS requirement because it is
+not meant to be exposed to the internet.
+
+---
 
 ## License
 
-MIT
+[MIT](LICENSE) © DanielGS
