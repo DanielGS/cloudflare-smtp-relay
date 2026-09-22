@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-22
+
 ### Added
 
 - A manually-triggered `release.yml` workflow that rolls the `[Unreleased]` changelog entries
@@ -50,5 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build-time version stamping: the version is injected through `-ldflags`, reported by
   `relay -version`, and included in the `relay starting` log line.
 
-[Unreleased]: https://github.com/DanielGS/cloudflare-smtp-relay/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/DanielGS/cloudflare-smtp-relay/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/DanielGS/cloudflare-smtp-relay/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/DanielGS/cloudflare-smtp-relay/releases/tag/v1.0.0
