@@ -63,5 +63,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # steps.meta.outputs.version is derived from the git tag (or branch/sha
+          # for untagged builds), and gets stamped into the binary at -X main.version.
+          build-args: VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

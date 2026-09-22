@@ -10,6 +10,11 @@ FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
 
+# VERSION is injected by the caller (the git tag in CI, "dev" locally) and
+# stamped into the binary since .dockerignore excludes .git, which means Go's
+# automatic VCS stamping produces nothing inside the image.
+ARG VERSION=dev
+
 WORKDIR /src
 
 # Dependencies first, so edits to the source do not invalidate the module cache.
@@ -22,7 +27,7 @@ COPY . .
 # GOOS/GOARCH cross-compile natively for the target platform, so no QEMU is needed.
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
         -trimpath \
-        -ldflags="-s -w" \
+        -ldflags="-s -w -X main.version=$VERSION" \
         -o /out/relay \
         ./cmd/relay
 

@@ -33,10 +33,21 @@ import (
 // termination signal before the process exits anyway.
 const shutdownGrace = 20 * time.Second
 
+// version identifies the build. It is overridden at build time via
+// -ldflags "-X main.version=...", so a binary built without that flag stays
+// honestly labeled "dev" instead of reporting a fake release number.
+var version = "dev"
+
 func main() {
 	healthcheck := flag.Bool("healthcheck", false,
 		"probe the local health endpoint and exit 0 when healthy; used by the container HEALTHCHECK")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	if *healthcheck {
 		if err := runHealthcheck(); err != nil {
@@ -139,6 +150,7 @@ func run() error {
 
 	// cfg redacts its own secrets, so logging it cannot leak the API token.
 	logger.Info("relay starting",
+		slog.String("version", version),
 		slog.String("smtp_addr", smtpLn.Addr().String()),
 		slog.String("health_addr", healthLn.Addr().String()),
 		slog.String("transport", string(cfg.CloudflareTransport)),
