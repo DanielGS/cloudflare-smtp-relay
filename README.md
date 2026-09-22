@@ -139,13 +139,15 @@ not solving a billing problem for you, just an SMTP one.
 > [Cloudflare setup](docs/cloudflare-setup.md). It takes about five minutes and decides one
 > environment variable.
 
+Pull the example compose file — it runs the published image, no repository clone needed:
+
 ```bash
-git clone https://github.com/DanielGS/cloudflare-smtp-relay.git
-cd cloudflare-smtp-relay
-cp .env.example .env
+mkdir cloudflare-smtp-relay && cd cloudflare-smtp-relay
+curl -fsSLo docker-compose.yml \
+  https://raw.githubusercontent.com/DanielGS/cloudflare-smtp-relay/main/examples/docker-compose.yml
 ```
 
-Edit `.env` and set at minimum:
+Create `.env` next to it and set at minimum:
 
 ```env
 SMTP_PASSWORD=<a long random string>
@@ -157,41 +159,33 @@ ALLOWED_FROM_DOMAINS=subdomain.mydomainexample.com
 Then:
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
 The relay listens on `2525` (SMTP) and `8080` (health) on a Docker network named `mail`.
 **Neither port is published to the host by default** — containers reach it by service name.
-
-### Using the prebuilt image
-
-Every push to `main` publishes a multi-arch image (`linux/amd64`, `linux/arm64`) to GitHub
-Container Registry, so you do not have to build it yourself:
-
-```bash
-docker pull ghcr.io/danielgs/cloudflare-smtp-relay:latest
-```
-
-To use it instead of a local build, swap `build: .` for `image:` in `docker-compose.yml`:
-
-```yaml
-services:
-  cloudflare-smtp-relay:
-    image: ghcr.io/danielgs/cloudflare-smtp-relay:latest
-```
-
-Tagged releases (`v1.2.3`) also publish `1.2.3` and `1.2`. Pin one of those in production
-rather than tracking `latest`.
-
-A ready-to-copy compose file using this image, plus an example client service showing how
-another container sends mail through the relay, lives in
-[`examples/docker-compose.yml`](examples/docker-compose.yml).
+Full environment variable reference: [Configuration](docs/configuration.md).
 
 Confirm it is alive:
 
 ```bash
 docker compose exec cloudflare-smtp-relay /relay -healthcheck
 ```
+
+Send a test email through it, using the bundled demo client service:
+
+```bash
+docker compose --profile demo run --rm app-example
+```
+
+Tagged releases (`v1.2.3`) also publish `1.2.3` and `1.2` image tags; `docker-compose.yml`
+tracks `latest` by default — pin an exact version in production instead (see
+[Versioning](#versioning)).
+
+### Building from source
+
+Contributing, or want to build the image yourself instead of pulling it? See
+[CONTRIBUTING.md](CONTRIBUTING.md#development).
 
 ---
 

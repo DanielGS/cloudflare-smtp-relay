@@ -2,14 +2,16 @@
 # instead of building from source, plus an example client service showing
 # how another container sends mail through it.
 #
-# Usage:
-#   cp .env.example .env        # from the repo root, then fill in your values
-#   docker compose -f examples/docker-compose.yml --env-file ../.env up -d
+# Usage (see the Quick start in the README for the full walkthrough):
+#   curl -fsSLo docker-compose.yml \
+#     https://raw.githubusercontent.com/DanielGS/cloudflare-smtp-relay/main/examples/docker-compose.yml
+#   # create a .env file next to it — see the README's Quick start for the
+#   # minimum required variables, or docs/configuration.md for the full list
+#   docker compose up -d
 #
 # Send a test email through the relay (the "app-example" service is not
 # started by default, it only runs on demand via its "demo" profile):
-#   docker compose -f examples/docker-compose.yml --env-file ../.env \
-#     --profile demo run --rm app-example
+#   docker compose --profile demo run --rm app-example
 
 services:
   cloudflare-smtp-relay:
