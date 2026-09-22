@@ -101,6 +101,8 @@ func doAttempt(
 		return nil, classifyTransport(err, attempt), true, 0
 	}
 
+	//nolint:bodyclose // readAndDrainBody closes resp.Body; bodyclose cannot
+	// follow the close through a helper function.
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, classifyTransport(err, attempt), true, 0
@@ -125,7 +127,7 @@ func doAttempt(
 // readAndDrainBody reads up to maxResponseBodyBytes from r, then drains and
 // closes it so the underlying connection can be reused.
 func readAndDrainBody(r io.ReadCloser) ([]byte, error) {
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 	limited := io.LimitReader(r, maxResponseBodyBytes)
 	body, err := io.ReadAll(limited)
 	io.Copy(io.Discard, r) //nolint:errcheck // best-effort drain
@@ -148,6 +150,8 @@ func backoffDelay(attempt int, retryAfter time.Duration) time.Duration {
 	if maxDelay > retryCapDelay || maxDelay <= 0 {
 		maxDelay = retryCapDelay
 	}
+	//nolint:gosec // G404: retry jitter only needs to desynchronize clients,
+	// not to be unpredictable. crypto/rand would be wasteful here.
 	return time.Duration(rand.Int63n(int64(maxDelay) + 1))
 }
 

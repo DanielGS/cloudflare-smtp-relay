@@ -119,13 +119,19 @@ func run() error {
 
 	healthSrv := health.New(cfg.HealthAddr(), logger)
 
+	// Signal handling is armed before binding, so a SIGTERM arriving while a
+	// listener address is still resolving aborts startup instead of being lost.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+
 	// Bind both listeners before serving, so a port conflict fails startup
 	// loudly instead of leaving the process half-up.
-	smtpLn, err := net.Listen("tcp", cfg.SMTPAddr())
+	var lc net.ListenConfig
+	smtpLn, err := lc.Listen(ctx, "tcp", cfg.SMTPAddr())
 	if err != nil {
 		return fmt.Errorf("listen smtp: %w", err)
 	}
-	healthLn, err := net.Listen("tcp", cfg.HealthAddr())
+	healthLn, err := lc.Listen(ctx, "tcp", cfg.HealthAddr())
 	if err != nil {
 		_ = smtpLn.Close()
 		return fmt.Errorf("listen health: %w", err)
@@ -139,9 +145,6 @@ func run() error {
 		slog.Int("allowed_from_domains", len(cfg.AllowedFromDomains)),
 		slog.Bool("smtp_tls", tlsConfig != nil),
 	)
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer stop()
 
 	serveErr := make(chan error, 2)
 	go func() { serveErr <- smtpSrv.Serve(smtpLn) }()

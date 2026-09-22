@@ -49,7 +49,7 @@ func Parse(raw []byte, envelopeFrom string, envelopeRcpts []string) (*Message, e
 			return nil, fmt.Errorf("email: parse message: %w", err)
 		}
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	msg := &Message{
 		Headers:    map[string]string{},
