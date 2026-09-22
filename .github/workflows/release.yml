@@ -65,6 +65,32 @@ jobs:
             exit 1
           fi
 
+      - name: Check CI is green on the commit being released
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          # An older green run does not vouch for this commit, so the run is
+          # matched by SHA rather than just by branch. Releasing a commit whose
+          # tests never passed is exactly what this guards against.
+          # gh evaluates --jq itself, so this needs no external jq binary.
+          result=$(gh run list --workflow ci.yml --branch main --limit 30 \
+                     --json headSha,status,conclusion \
+                     --jq "[.[] | select(.headSha == \"$sha\")] | first | select(. != null) | \"\(.status) \(.conclusion)\"")
+          if [ -z "$result" ]; then
+            echo "::error::No CI run found for commit $sha on main. Let CI run before releasing." >&2
+            exit 1
+          fi
+          status=${result%% *}
+          conclusion=${result##* }
+          if [ "$status" != "completed" ]; then
+            echo "::error::CI for $sha is still '$status'. Wait for it to finish, then release." >&2
+            exit 1
+          fi
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::CI for $sha concluded '$conclusion', not 'success'. Fix main before releasing." >&2
+            exit 1
+          fi
+
       - name: Determine the previous release version
         id: previous
         run: |

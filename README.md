@@ -523,6 +523,10 @@ write access to the repository, so only maintainers can run it. It moves the CHA
 `[Unreleased]` entries into a new dated version section, tags the release, publishes the
 GitHub release, and triggers the container image build for that tag.
 
+The workflow refuses to release unless four things hold: the version is bare semver, the tag
+does not already exist, `[Unreleased]` has content, and the CI run for the exact commit being
+released concluded `success`. A green run on an older commit does not count.
+
 ---
 
 ## Scope
