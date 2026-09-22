@@ -1,8 +1,8 @@
 services:
-  smtp-cloudflare-relay:
+  cloudflare-smtp-relay:
     build: .
     image: cloudflare-smtp-relay:latest
-    container_name: smtp-cloudflare-relay
+    container_name: cloudflare-smtp-relay
     restart: unless-stopped
     env_file:
       - .env
