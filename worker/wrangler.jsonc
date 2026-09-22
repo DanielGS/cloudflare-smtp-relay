@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "smtp-relay-sender",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+
+  // The Email Routing send binding. Leaving it unrestricted allows delivery to
+  // any verified destination address in the account. To narrow it further,
+  // replace it with one of the restricted forms below.
+  "send_email": [
+    {
+      "name": "EMAIL"
+    }
+    // Single fixed destination:
+    // { "name": "EMAIL", "destination_address": "ops@yourdomain.com" }
+    //
+    // Explicit allowlist:
+    // { "name": "EMAIL", "allowed_destination_addresses": ["a@x.com", "b@x.com"] }
+    //
+    // Restrict which senders may be used:
+    // { "name": "EMAIL", "allowed_sender_addresses": ["no-reply@tasks.yourdomain.com"] }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+
+  // RELAY_SECRET is NOT declared here on purpose. Set it as an encrypted secret:
+  //   npx wrangler secret put RELAY_SECRET
+  // Putting it in vars would commit it to the repository in plaintext.
+}
