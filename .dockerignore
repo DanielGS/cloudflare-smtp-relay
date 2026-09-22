@@ -1,0 +1,26 @@
+# Version control
+.git
+.gitignore
+
+# Local environment and secrets
+.env
+*.env
+!.env.example
+
+# Build output
+bin/
+relay
+*.out
+coverage.html
+
+# Tooling and docs that never affect the build
+Makefile
+README.md
+.golangci.yml
+odd/
+worker/
+
+# Editor noise
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,25 @@
+services:
+  smtp-cloudflare-relay:
+    build: .
+    image: cloudflare-smtp-relay:latest
+    container_name: smtp-cloudflare-relay
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - mail
+    # The relay speaks plaintext SMTP and is reachable by service name from any
+    # container on the "mail" network, so it does not need a host port. Uncomment
+    # to test from the host; keep it bound to loopback rather than 0.0.0.0.
+    # ports:
+    #   - "127.0.0.1:2525:2525"
+    #   - "127.0.0.1:8080:8080"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop:
+      - ALL
+
+networks:
+  mail:
+    name: mail
