@@ -1,0 +1,61 @@
+# Example deployment of cloudflare-smtp-relay using the published image
+# instead of building from source, plus an example client service showing
+# how another container sends mail through it.
+#
+# Usage:
+#   cp .env.example .env        # from the repo root, then fill in your values
+#   docker compose -f examples/docker-compose.yml --env-file ../.env up -d
+#
+# Send a test email through the relay (the "app-example" service is not
+# started by default, it only runs on demand via its "demo" profile):
+#   docker compose -f examples/docker-compose.yml --env-file ../.env \
+#     --profile demo run --rm app-example
+
+services:
+  cloudflare-smtp-relay:
+    image: ghcr.io/danielgs/cloudflare-smtp-relay:latest
+    container_name: cloudflare-smtp-relay
+    restart: unless-stopped
+    # Minimum environment required to start. See .env.example at the repo
+    # root for the full list of optional settings (timeouts, TLS, etc).
+    environment:
+      SMTP_USER: "${SMTP_USER:-relay}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:?set a long random string}"
+      CLOUDFLARE_ACCOUNT_ID: "${CLOUDFLARE_ACCOUNT_ID:?set your Cloudflare account id}"
+      CLOUDFLARE_API_TOKEN: "${CLOUDFLARE_API_TOKEN:?set a token with Email Sending: Edit permission}"
+      ALLOWED_FROM_DOMAINS: "${ALLOWED_FROM_DOMAINS:?set your verified sending domain}"
+    networks:
+      - mail
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop:
+      - ALL
+
+  # Stand-in for "your app": any container on the "mail" network reaches the
+  # relay by service name over plaintext SMTP, no TLS needed on this hop.
+  # This uses swaks to fire one test email and exit; it is not a long-running
+  # service, hence the "demo" profile.
+  app-example:
+    image: instrumentisto/swaks
+    profiles:
+      - demo
+    depends_on:
+      - cloudflare-smtp-relay
+    networks:
+      - mail
+    command:
+      - "--server=cloudflare-smtp-relay:2525"
+      - "--auth=PLAIN"
+      - "--auth-user=${SMTP_USER:-relay}"
+      - "--auth-password=${SMTP_PASSWORD:?set a long random string}"
+      - "--from=no-reply@${ALLOWED_FROM_DOMAINS:?set your verified sending domain}"
+      # Defaults to a placeholder; export DEMO_TO_ADDRESS with a real inbox
+      # you can check to actually verify delivery.
+      - "--to=${DEMO_TO_ADDRESS:-you@example.com}"
+      - "--header=Subject: relay demo"
+      - "--body=hello from the app-example service"
+
+networks:
+  mail:
+    name: mail

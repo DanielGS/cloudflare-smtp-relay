@@ -188,6 +188,9 @@ services:
 Tagged releases (`v1.2.3`) also publish `1.2.3` and `1.2`. Pin one of those in production
 rather than tracking `latest`.
 
+A ready-to-copy compose file using this image, plus an example client service showing how
+another container sends mail through the relay, lives in
+[`examples/docker-compose.yml`](examples/docker-compose.yml).
 
 Confirm it is alive:
 
