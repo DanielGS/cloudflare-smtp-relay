@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - README now leads with the free-tier value proposition: sending through Email Routing on any
   plan, and why Cloudflare's own SMTP endpoint cannot reach that path.
+- `ALLOWED_FROM_DOMAINS` is documented with a multi-domain example, the normalization it
+  applies, and why matching is exact rather than by suffix.
 
 ## [1.0.0] - 2026-09-22
 

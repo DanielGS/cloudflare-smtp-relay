@@ -348,7 +348,7 @@ Every setting comes from an environment variable. Nothing is baked into the imag
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ALLOWED_FROM_DOMAINS` | empty | Comma-separated. Empty means any sender. Matching is **exact**: `subdomain.mydomainexample.com` does not permit `mydomainexample.com`. |
+| `ALLOWED_FROM_DOMAINS` | empty | Comma-separated; spaces, case and duplicates are normalized away. Empty means any sender. Matching is **exact**, with no wildcards and no subdomain inheritance: `mydomainexample.com` does not permit `notifications.mydomainexample.com`. List every domain. |
 | `HEALTH_HOST` / `HEALTH_PORT` | `0.0.0.0` / `8080` | |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`. |
 
