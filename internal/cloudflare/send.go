@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
 )
 
 // maxResponseBodyBytes caps how much of an upstream response body is read,

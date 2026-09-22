@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
 )
 
 // RESTConfig configures a REST adapter talking directly to Cloudflare's

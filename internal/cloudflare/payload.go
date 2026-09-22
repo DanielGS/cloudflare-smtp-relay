@@ -1,6 +1,6 @@
 package cloudflare
 
-import "github.com/dagase/cloudflare-smtp-relay/internal/email"
+import "github.com/DanielGS/cloudflare-smtp-relay/internal/email"
 
 // addressPayload is one sender/recipient entry on the wire.
 //

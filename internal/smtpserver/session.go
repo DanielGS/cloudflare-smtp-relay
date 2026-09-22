@@ -11,8 +11,8 @@ import (
 	"github.com/emersion/go-sasl"
 	gosmtp "github.com/emersion/go-smtp"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
-	"github.com/dagase/cloudflare-smtp-relay/internal/logging"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/logging"
 )
 
 // sendTimeout bounds how long a single Sender.Send call may take. It is

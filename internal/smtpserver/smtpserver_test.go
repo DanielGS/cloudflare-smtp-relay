@@ -6,8 +6,8 @@ import (
 
 	"github.com/emersion/go-sasl"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
-	"github.com/dagase/cloudflare-smtp-relay/internal/smtpserver"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/smtpserver"
 )
 
 // 1. Successful authentication with PLAIN, then a full valid transaction

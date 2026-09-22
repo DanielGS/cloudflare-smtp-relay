@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/health"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/health"
 )
 
 // TestHandlerHealthOK verifies that GET /health returns 200, the exact JSON

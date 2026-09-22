@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
 )
 
 func newTestWorker(t *testing.T, handler http.HandlerFunc, maxRetries int) (*Worker, *int32) {

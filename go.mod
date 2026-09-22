@@ -1,4 +1,4 @@
-module github.com/dagase/cloudflare-smtp-relay
+module github.com/DanielGS/cloudflare-smtp-relay
 
 go 1.27.0
 

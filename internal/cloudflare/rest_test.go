@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
 )
 
 // noopSleep is a fake Sleep seam that never actually waits, so retry tests

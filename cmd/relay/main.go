@@ -21,12 +21,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/cloudflare"
-	"github.com/dagase/cloudflare-smtp-relay/internal/config"
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
-	"github.com/dagase/cloudflare-smtp-relay/internal/health"
-	"github.com/dagase/cloudflare-smtp-relay/internal/logging"
-	"github.com/dagase/cloudflare-smtp-relay/internal/smtpserver"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/cloudflare"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/config"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/health"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/logging"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/smtpserver"
 )
 
 // shutdownGrace bounds how long in-flight SMTP transactions may finish after a

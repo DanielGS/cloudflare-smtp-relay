@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
 )
 
 func TestBuildPayload_AddressKeyNotEmail(t *testing.T) {

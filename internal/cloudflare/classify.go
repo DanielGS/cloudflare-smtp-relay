@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
 )
 
 // codeBucket is the classification outcome tied to one specific Cloudflare

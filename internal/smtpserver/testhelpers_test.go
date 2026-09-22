@@ -13,9 +13,9 @@ import (
 	"github.com/emersion/go-sasl"
 	gosmtp "github.com/emersion/go-smtp"
 
-	"github.com/dagase/cloudflare-smtp-relay/internal/email"
-	"github.com/dagase/cloudflare-smtp-relay/internal/logging"
-	"github.com/dagase/cloudflare-smtp-relay/internal/smtpserver"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/email"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/logging"
+	"github.com/DanielGS/cloudflare-smtp-relay/internal/smtpserver"
 )
 
 const (
