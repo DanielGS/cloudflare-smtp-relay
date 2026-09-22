@@ -5,6 +5,10 @@ IMAGE  := cloudflare-smtp-relay
 # Pinned so `make lint` and CI run the identical linter version.
 GOLANGCI := github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
 
+# Derived from the nearest git tag for local builds; "dev" outside a git
+# checkout (e.g. an extracted tarball) or when no tag exists yet.
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+
 .DEFAULT_GOAL := help
 
 .PHONY: help
@@ -13,8 +17,8 @@ help: ## Show available targets
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: build
-build: ## Compile the relay binary into ./bin
-	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/$(BINARY) ./cmd/relay
+build: ## Compile the relay binary into ./bin, stamped with the git-derived version
+	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$(VERSION)" -o bin/$(BINARY) ./cmd/relay
 
 .PHONY: test
 test: ## Run the full unit test suite

@@ -5,6 +5,7 @@
 **An SMTP submission server for apps that only speak SMTP, delivering through the Cloudflare Email Service HTTP API.**
 
 [![CI](https://github.com/DanielGS/cloudflare-smtp-relay/actions/workflows/ci.yml/badge.svg)](https://github.com/DanielGS/cloudflare-smtp-relay/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/github/v/tag/DanielGS/cloudflare-smtp-relay?label=version&sort=semver)](https://github.com/DanielGS/cloudflare-smtp-relay/releases)
 [![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](#license)
 [![Docker](https://img.shields.io/badge/ghcr.io-cloudflare--smtp--relay-2496ED?logo=docker&logoColor=white)](https://github.com/DanielGS/cloudflare-smtp-relay/pkgs/container/cloudflare-smtp-relay)
@@ -64,6 +65,7 @@ lives in exactly one place.
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
 - [Scope](#scope)
+- [Versioning](#versioning)
 - [Contributing](#contributing)
 - [Security](#security)
 - [License](#license)
@@ -466,6 +468,37 @@ Cloudflare transports, bounded retries for temporary failures, structured logs, 
 
 **Not included, by design:** mail reception, IMAP/POP3, a persistent queue, unbounded retries,
 a web panel, a database.
+
+---
+
+## Versioning
+
+This project follows [Semantic Versioning](https://semver.org/). The public interface that
+semver applies to is:
+
+- **Environment variables** — the configuration surface documented in
+  [Configuration](#configuration).
+- **SMTP reply-code behavior** — the mapping documented in
+  [How the relay answers your client](#how-the-relay-answers-your-client).
+- **Published image tags** — the tags described below.
+
+Go packages under `internal/` are **not** part of that interface: Go's own visibility rules
+make them importable by nobody outside this module, so their signatures can change freely
+between releases without a version bump.
+
+Each tagged release publishes three image tags to GHCR:
+
+| Tag | Meaning |
+|---|---|
+| `1.2.3` | Immutable. Never repointed once published. |
+| `1.2` | Moving pointer to the latest `1.2.x` patch. |
+| `latest` | Moving pointer to the most recent build of the default branch, not a release. |
+
+Pin an exact version (`1.2.3`) in production rather than `1.2` or `latest`, so an upgrade is a
+deliberate action instead of something that happens on the next `docker pull`.
+
+The running binary reports its own version with `relay -version`, and the `relay starting` log
+line carries a `version` field.
 
 ---
 
