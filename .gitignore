@@ -1,0 +1,14 @@
+# Build output
+/bin/
+/relay
+
+# Local environment
+.env
+
+# Go workspace
+go.work
+go.work.sum
+
+# Coverage
+*.out
+coverage.html
