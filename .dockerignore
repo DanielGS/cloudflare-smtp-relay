@@ -16,8 +16,10 @@ coverage.html
 # Tooling and docs that never affect the build
 Makefile
 README.md
+CHANGELOG.md
 .golangci.yml
 odd/
+scripts/
 worker/
 
 # Editor noise

@@ -1,0 +1,190 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without a leading v (example: 1.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Validate version format
+        run: |
+          set -euo pipefail
+          if [[ "$VERSION" == v* ]]; then
+            echo "::error::Pass the version without a leading 'v' (e.g. 1.1.0, not v${VERSION#v})." >&2
+            exit 1
+          fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$VERSION' is not a valid semver version (expected MAJOR.MINOR.PATCH, e.g. 1.1.0)." >&2
+            exit 1
+          fi
+
+      - name: Check the tag does not already exist
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "::error::Tag v${VERSION} already exists on origin." >&2
+            exit 1
+          fi
+
+      - name: Check the Unreleased section has content
+        run: |
+          set -euo pipefail
+          # Extract the body between "## [Unreleased]" and the next "## [" heading,
+          # then fail unless at least one non-blank line remains.
+          content=$(awk '
+            /^## \[Unreleased\]/ { capture = 1; next }
+            /^## \[/ { capture = 0 }
+            capture { print }
+          ' CHANGELOG.md)
+          if [ -z "$(echo "$content" | tr -d '[:space:]')" ]; then
+            echo "::error::CHANGELOG.md has nothing under [Unreleased]; there is nothing to release." >&2
+            exit 1
+          fi
+
+      - name: Check CI is green on the commit being released
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          # An older green run does not vouch for this commit, so the run is
+          # matched by SHA rather than just by branch. Releasing a commit whose
+          # tests never passed is exactly what this guards against.
+          # gh evaluates --jq itself, so this needs no external jq binary.
+          result=$(gh run list --workflow ci.yml --branch main --limit 30 \
+                     --json headSha,status,conclusion \
+                     --jq "[.[] | select(.headSha == \"$sha\")] | first | select(. != null) | \"\(.status) \(.conclusion)\"")
+          if [ -z "$result" ]; then
+            echo "::error::No CI run found for commit $sha on main. Let CI run before releasing." >&2
+            exit 1
+          fi
+          status=${result%% *}
+          conclusion=${result##* }
+          if [ "$status" != "completed" ]; then
+            echo "::error::CI for $sha is still '$status'. Wait for it to finish, then release." >&2
+            exit 1
+          fi
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::CI for $sha concluded '$conclusion', not 'success'. Fix main before releasing." >&2
+            exit 1
+          fi
+
+      - name: Determine the previous release version
+        id: previous
+        run: |
+          set -euo pipefail
+          # The first "## [x.y.z]" heading after [Unreleased] is the current latest release.
+          previous=$(awk '
+            /^## \[Unreleased\]/ { next }
+            /^## \[[0-9]+\.[0-9]+\.[0-9]+\]/ {
+              match($0, /\[[0-9]+\.[0-9]+\.[0-9]+\]/)
+              v = substr($0, RSTART + 1, RLENGTH - 2)
+              print v
+              exit
+            }
+          ' CHANGELOG.md)
+          if [ -z "$previous" ]; then
+            echo "::error::Could not find a previous release heading in CHANGELOG.md." >&2
+            exit 1
+          fi
+          echo "version=$previous" >> "$GITHUB_OUTPUT"
+
+      - name: Rewrite CHANGELOG.md
+        id: changelog
+        run: |
+          set -euo pipefail
+          today=$(date -u +%Y-%m-%d)
+          python3 scripts/release_changelog.py \
+            --changelog CHANGELOG.md \
+            --version "$VERSION" \
+            --previous "${{ steps.previous.outputs.version }}" \
+            --date "$today" \
+            --repo "https://github.com/DanielGS/cloudflare-smtp-relay"
+
+      - name: Extract release notes for this version
+        id: notes
+        run: |
+          set -euo pipefail
+          # Pull the body of the freshly written "## [<version>]" section, between its
+          # heading and the next "## [" heading, and stash it for `gh release create`.
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { capture = 1; next }
+            /^## \[/ { capture = 0 }
+            capture { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ -z "$(tr -d '[:space:]' < release-notes.md)" ]; then
+            echo "::error::Extracted release notes for v${VERSION} are empty." >&2
+            exit 1
+          fi
+
+      - name: Commit the changelog
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore(release): v${VERSION}"
+          git push origin HEAD:main
+
+      - name: Tag the release commit
+        run: |
+          set -euo pipefail
+          git tag -a "v${VERSION}" -m "v${VERSION}"
+          git push origin "v${VERSION}"
+
+      - name: Create the GitHub release
+        id: gh_release
+        run: |
+          set -euo pipefail
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --notes-file release-notes.md \
+            --target main
+          url=$(gh release view "v${VERSION}" --json url --jq .url)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch the image build
+        run: |
+          set -euo pipefail
+          # A GITHUB_TOKEN-authored event (including the tag push above) does not
+          # trigger other workflow runs, and workflow_dispatch/repository_dispatch are
+          # the only exceptions to that rule. docker.yml's tag-push trigger will
+          # therefore NOT fire on its own for this tag, so it must be dispatched
+          # explicitly, at the tag ref, so github.ref resolves to refs/tags/v<version>
+          # for docker/metadata-action's type=semver tags. Do not remove this step
+          # under the assumption that the tag push above already covers it.
+          gh workflow run docker.yml --ref "v${VERSION}"
+
+      - name: Write job summary
+        run: |
+          set -euo pipefail
+          {
+            echo "## Release v${VERSION}"
+            echo
+            echo "- Release: ${{ steps.gh_release.outputs.url }}"
+            echo "- Image build dispatched for \`docker.yml\` at ref \`v${VERSION}\`."
+            echo "- Once the image build finishes, it will be published at"
+            echo "  \`ghcr.io/danielgs/cloudflare-smtp-relay:${VERSION}\`."
+          } >> "$GITHUB_STEP_SUMMARY"
