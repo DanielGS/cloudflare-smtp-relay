@@ -9,6 +9,10 @@ on:
   pull_request:
     branches:
       - main
+  # A GITHUB_TOKEN-authored tag push (as done by release.yml) does not trigger
+  # other workflows, so release.yml explicitly dispatches this workflow at the
+  # tag ref after pushing it. workflow_dispatch exists so that dispatch works.
+  workflow_dispatch:
 
 permissions:
   contents: read

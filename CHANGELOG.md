@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A manually-triggered `release.yml` workflow that rolls the `[Unreleased]` changelog entries
+  into a new dated version section, tags the release, publishes the GitHub release, and
+  dispatches `docker.yml` at the release tag to build and push the versioned image.
+
 ### Changed
 
 - README now leads with the free-tier value proposition: sending through Email Routing on any
