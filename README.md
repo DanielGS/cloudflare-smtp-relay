@@ -62,19 +62,14 @@ lives in exactly one place.
 
 - [Why this exists](#why-this-exists)
 - [Quick start](#quick-start)
-- [Cloudflare setup](#cloudflare-setup)
+- [Cloudflare setup](docs/cloudflare-setup.md)
 - [Connecting an application](#connecting-an-application)
-- [Configuration](#configuration)
-- [How the relay answers your client](#how-the-relay-answers-your-client)
-- [Logging](#logging)
-- [Health](#health)
-- [Verifying an end-to-end send](#verifying-an-end-to-end-send)
-- [Troubleshooting](#troubleshooting)
-- [Development](#development)
+- [Configuration](docs/configuration.md)
+- [Operations](docs/operations.md)
 - [Scope](#scope)
 - [Versioning](#versioning)
-- [Contributing](#contributing)
-- [Security](#security)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
 - [License](#license)
 
 ---
@@ -141,16 +136,18 @@ not solving a billing problem for you, just an SMTP one.
 ## Quick start
 
 > **Prerequisite:** the Cloudflare side must be configured first — see
-> [Cloudflare setup](#cloudflare-setup). It takes about five minutes and decides one
+> [Cloudflare setup](docs/cloudflare-setup.md). It takes about five minutes and decides one
 > environment variable.
 
+Pull the example compose file — it runs the published image, no repository clone needed:
+
 ```bash
-git clone https://github.com/DanielGS/cloudflare-smtp-relay.git
-cd cloudflare-smtp-relay
-cp .env.example .env
+mkdir cloudflare-smtp-relay && cd cloudflare-smtp-relay
+curl -fsSLo docker-compose.yml \
+  https://raw.githubusercontent.com/DanielGS/cloudflare-smtp-relay/main/examples/docker-compose.yml
 ```
 
-Edit `.env` and set at minimum:
+Create `.env` next to it and set at minimum:
 
 ```env
 SMTP_PASSWORD=<a long random string>
@@ -162,35 +159,12 @@ ALLOWED_FROM_DOMAINS=subdomain.mydomainexample.com
 Then:
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
 The relay listens on `2525` (SMTP) and `8080` (health) on a Docker network named `mail`.
 **Neither port is published to the host by default** — containers reach it by service name.
-
-### Using the prebuilt image
-
-Every push to `main` publishes a multi-arch image (`linux/amd64`, `linux/arm64`) to GitHub
-Container Registry, so you do not have to build it yourself:
-
-```bash
-docker pull ghcr.io/danielgs/cloudflare-smtp-relay:latest
-```
-
-To use it instead of a local build, swap `build: .` for `image:` in `docker-compose.yml`:
-
-```yaml
-services:
-  cloudflare-smtp-relay:
-    image: ghcr.io/danielgs/cloudflare-smtp-relay:latest
-```
-
-Tagged releases (`v1.2.3`) also publish `1.2.3` and `1.2`. Pin one of those in production
-rather than tracking `latest`.
-
-A ready-to-copy compose file using this image, plus an example client service showing how
-another container sends mail through the relay, lives in
-[`examples/docker-compose.yml`](examples/docker-compose.yml).
+Full environment variable reference: [Configuration](docs/configuration.md).
 
 Confirm it is alive:
 
@@ -198,90 +172,30 @@ Confirm it is alive:
 docker compose exec cloudflare-smtp-relay /relay -healthcheck
 ```
 
+Send a test email through it, using the bundled demo client service:
+
+```bash
+docker compose --profile demo run --rm app-example
+```
+
+Tagged releases (`v1.2.3`) also publish `1.2.3` and `1.2` image tags; `docker-compose.yml`
+tracks `latest` by default — pin an exact version in production instead (see
+[Versioning](#versioning)).
+
+### Building from source
+
+Contributing, or want to build the image yourself instead of pulling it? See
+[CONTRIBUTING.md](CONTRIBUTING.md#development).
+
 ---
 
-## Cloudflare setup
+## Learn more
 
-Required regardless of this relay. Four steps, in order.
-
-### 1. Enable Email Routing on the exact sending domain
-
-A subdomain does **not** inherit Email Routing from the apex domain. To send from
-`subdomain.mydomainexample.com`, add it explicitly:
-
-> Dashboard → **Email Routing** on `mydomainexample.com` → **Settings** → **Subdomains** →
-> add `subdomain.mydomainexample.com`
-
-Cloudflare adds the required DNS records. Skipping this is the most common cause of
-`Email sending is not enabled for domain …`.
-
-### 2. Verify your destination addresses
-
-> Dashboard → **Email Routing** → **Destination addresses**
-
-On the free tier you can only send **to** addresses verified here. Arbitrary recipients
-require the Workers Paid plan.
-
-### 3. Create an API token
-
-An API token with the **Email Sending: Edit** permission.
-
-### 4. Probe which transport your account can use
-
-This single request decides whether you need the Worker.
-
-```bash
-curl -i "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/email/sending/send" \
-  -H "Authorization: Bearer $CF_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "from": "no-reply@subdomain.mydomainexample.com",
-    "to": "your-verified-destination@example.com",
-    "subject": "relay probe",
-    "text": "probe"
-  }'
-```
-
-```mermaid
-flowchart TD
-    probe{"Probe response"}
-    probe -- "200 · success: true" --> rest["CLOUDFLARE_TRANSPORT=rest<br/>nothing else to do"]
-    probe -- "403 · not_entitled<br/>403 · sending_disabled" --> wrk["CLOUDFLARE_TRANSPORT=worker<br/>deploy worker/"]
-    probe -- "403 · forbidden" --> tok["Token lacks<br/>Email Sending: Edit<br/>fix it, probe again"]
-
-    classDef q fill:#f1f5f9,stroke:#64748b,color:#0b1220
-    classDef good fill:#dcfce7,stroke:#16a34a,color:#0b1220
-    classDef warn fill:#fef3c7,stroke:#d97706,color:#0b1220
-    classDef bad fill:#fee2e2,stroke:#dc2626,color:#0b1220
-    class probe q
-    class rest good
-    class wrk warn
-    class tok bad
-```
-
-<details>
-<summary><b>Worker transport — when the probe says you need it</b></summary>
-
-The Email Routing `send_email` binding works on any plan, unlike the REST surface. The Worker
-in [`worker/`](worker/) exposes that binding over HTTP so the relay, running outside
-Cloudflare, can reach it.
-
-```bash
-cd worker
-npx wrangler deploy
-npx wrangler secret put RELAY_SECRET   # openssl rand -hex 32
-```
-
-```env
-CLOUDFLARE_TRANSPORT=worker
-WORKER_URL=https://smtp-relay-sender.<your-subdomain>.workers.dev
-WORKER_SECRET=<the same random string>
-```
-
-`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are unused in this mode. Full contract and
-security notes: [`worker/README.md`](worker/README.md).
-
-</details>
+- [Cloudflare setup](docs/cloudflare-setup.md) — enable Email Routing, verify destinations,
+  create a token, and pick a transport
+- [Configuration](docs/configuration.md) — full environment variable reference
+- [Operations](docs/operations.md) — SMTP reply-code behavior, logging, health checks,
+  verifying a send, and troubleshooting
 
 ---
 
@@ -316,222 +230,6 @@ requires SMTP AUTH, so an unauthenticated container cannot use it as an open rel
 
 ---
 
-## Configuration
-
-Every setting comes from an environment variable. Nothing is baked into the image.
-
-### SMTP listener
-
-| Variable | Default | Notes |
-|---|---|---|
-| `SMTP_HOST` | `0.0.0.0` | |
-| `SMTP_PORT` | `2525` | |
-| `SMTP_USER` | *(required)* | Credentials your applications authenticate with. |
-| `SMTP_PASSWORD` | *(required)* | Not Cloudflare's token. Change it. |
-| `SMTP_MAX_MESSAGE_BYTES` | `5242880` | 5 MiB. Cannot be raised above Cloudflare's cap. |
-| `SMTP_MAX_RECIPIENTS` | `50` | Cannot be raised above Cloudflare's cap. |
-| `SMTP_READ_TIMEOUT` | `30s` | |
-| `SMTP_WRITE_TIMEOUT` | `30s` | |
-| `SMTP_TLS_CERT` / `SMTP_TLS_KEY` | empty | Optional. Set both to serve SMTP over TLS. |
-
-### Cloudflare transport
-
-| Variable | Default | Notes |
-|---|---|---|
-| `CLOUDFLARE_TRANSPORT` | `rest` | `rest` or `worker`. See [the probe](#4-probe-which-transport-your-account-can-use). |
-| `CLOUDFLARE_ACCOUNT_ID` | *(required for `rest`)* | |
-| `CLOUDFLARE_API_TOKEN` | *(required for `rest`)* | Never logged. |
-| `CLOUDFLARE_API_BASE_URL` | `https://api.cloudflare.com/client/v4` | Override for testing. |
-| `CLOUDFLARE_TIMEOUT` | `15s` | Per attempt. |
-| `CLOUDFLARE_MAX_RETRIES` | `2` | Temporary failures only. |
-| `WORKER_URL` | *(required for `worker`)* | Your Worker's URL. |
-| `WORKER_SECRET` | *(required for `worker`)* | Shared secret. Never logged. |
-
-### Policy, health and logging
-
-| Variable | Default | Notes |
-|---|---|---|
-| `ALLOWED_FROM_DOMAINS` | empty | Comma-separated; spaces, case and duplicates are normalized away. Empty means any sender. Matching is **exact**, with no wildcards and no subdomain inheritance: `mydomainexample.com` does not permit `notifications.mydomainexample.com`. List every domain. |
-| `HEALTH_HOST` / `HEALTH_PORT` | `0.0.0.0` / `8080` | |
-| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`. |
-
----
-
-## How the relay answers your client
-
-The relay does not collapse every failure into `550`. It separates what is worth retrying from
-what is not, so a transient Cloudflare problem never makes a client discard a valid message.
-
-| Situation | SMTP reply |
-|---|---|
-| ✅ Cloudflare accepted the message | `250 2.0.0` |
-| ⏳ Rate limited (`429`) | `451 4.4.5`, honoring `Retry-After` |
-| ⏳ Cloudflare server error (`500`, `503`) | `451 4.3.0` |
-| ⏳ Timeout, DNS or network failure, unreadable response | `451 4.4.1` |
-| ⏳ Authentication or entitlement failure (`401`, `403`) | `451 4.7.0` — see below |
-| ❌ Malformed message rejected by Cloudflare (`400`) | `550 5.6.0` |
-| ❌ Account or resource not found (`404`) | `550 5.1.2` |
-| ❌ Sender outside `ALLOWED_FROM_DOMAINS` | `550 5.7.1`, refused at `MAIL FROM` |
-| ❌ Message above the size limit | `552 5.3.4` |
-| ❌ Bad SMTP credentials | `535 5.7.8` |
-
-> **Why `401`/`403` are temporary.** A bad or unentitled token is a fault in the relay's
-> configuration, not in the message. Answering `550` would make the client throw away a
-> perfectly valid email. Answering `451` makes it retry, so the message goes out on its own
-> once the token is fixed. Retries are attempted only for genuinely temporary conditions,
-> never for a permanent rejection.
-
----
-
-## Logging
-
-One structured JSON record per message, at `info` — or `warn`/`error` when deferred or
-rejected:
-
-```json
-{
-  "time": "2026-09-22T07:41:12.913Z",
-  "level": "INFO",
-  "msg": "delivery",
-  "message_id": "0b0f8f2c-9a6c-4f5c-8f5a-1d2e3f4a5b6c",
-  "rfc_message_id": "20260922074112.1@app.internal",
-  "from": "no-reply@subdomain.mydomainexample.com",
-  "to": ["ops@example.com"],
-  "subject": "Nightly report",
-  "result": "sent",
-  "duration_ms": 412,
-  "http_status": 200,
-  "attempts": 1
-}
-```
-
-**Never logged:** the message body, the Cloudflare API token, the SMTP password, the Worker
-secret. Subjects are truncated to 120 characters.
-
----
-
-## Health
-
-```bash
-curl -s localhost:8080/health
-{"status":"ok"}
-```
-
-The endpoint reports process liveness only and exposes no configuration. The container image
-has no shell and no `curl`, so the Docker `HEALTHCHECK` invokes the binary's own probe mode:
-
-```bash
-docker compose exec cloudflare-smtp-relay /relay -healthcheck
-```
-
----
-
-## Verifying an end-to-end send
-
-From a container on the `mail` network, using `swaks`:
-
-```bash
-docker run --rm --network mail instrumentisto/swaks \
-  --server cloudflare-smtp-relay:2525 \
-  --auth PLAIN --auth-user relay --auth-password change-me \
-  --from no-reply@subdomain.mydomainexample.com \
-  --to your-verified-destination@example.com \
-  --header "Subject: relay test" \
-  --body "hello from the relay"
-```
-
-Expect `250` and one log line with `"result":"sent"`.
-
-Worth checking the rejection paths too:
-
-- [ ] Wrong password → `535`
-- [ ] Sender on another domain → `550`
-- [ ] Attachment over 5 MiB → `552`
-
----
-
-## Troubleshooting
-
-<details>
-<summary><code>550 5.7.1 Email sending is not enabled for domain …</code></summary>
-
-Cloudflare is rejecting the **sender domain**. Confirm the exact domain or subdomain is added
-under Email Routing → Settings → Subdomains, and that
-[the probe](#4-probe-which-transport-your-account-can-use) succeeds.
-
-</details>
-
-<details>
-<summary><code>403</code> with <code>10105 not_entitled</code> from the probe</summary>
-
-Your account cannot use the Email Sending REST surface. Switch to
-`CLOUDFLARE_TRANSPORT=worker`, or buy the Workers Paid plan.
-
-</details>
-
-<details>
-<summary>Mail accepted by the relay but never delivered</summary>
-
-On the free tier the recipient must be a verified destination address. Check Email Routing →
-Destination addresses.
-
-</details>
-
-<details>
-<summary>Client reports <code>451</code> repeatedly</summary>
-
-Read the logs: `http_status` and `cf_error_code` name the upstream cause. A `401`/`403` there
-means the token is wrong or lacks `Email Sending: Edit`.
-
-</details>
-
----
-
-## Development
-
-```bash
-make help     # list targets
-make test     # go test -race -count=1 ./...
-make lint     # go vet, plus golangci-lint when installed
-make build    # static binary into ./bin
-make run      # run locally, sourcing .env
-make up       # docker compose up --build
-```
-
-Requires Go 1.27+. Tests use doubles throughout; the Cloudflare API is simulated with
-`httptest`. **No test makes a live call.**
-
-```
-cmd/relay          entrypoint and wiring
-internal/smtpserver  SMTP submission server, AUTH, session handling
-internal/email       parsing, policy, message model
-internal/cloudflare  REST and Worker transports, error classification
-internal/config      environment parsing, validation, redaction
-internal/logging     structured delivery records
-internal/health      liveness endpoint and probe mode
-worker/              optional Cloudflare Worker transport
-scripts/             release tooling, not part of the build
-```
-
-### Releasing
-
-Releases are cut by running the **Release** workflow, either from the Actions tab or with:
-
-```bash
-gh workflow run release.yml -f version=1.1.0
-```
-
-Pass the version **without** a leading `v` (`1.1.0`, not `v1.1.0`). The workflow requires
-write access to the repository, so only maintainers can run it. It moves the CHANGELOG's
-`[Unreleased]` entries into a new dated version section, tags the release, publishes the
-GitHub release, and triggers the container image build for that tag.
-
-The workflow refuses to release unless four things hold: the version is bare semver, the tag
-does not already exist, `[Unreleased]` has content, and the CI run for the exact commit being
-released concluded `success`. A green run on an older commit does not count.
-
----
-
 ## Scope
 
 **Included:** SMTP submission, AUTH, sender allowlist, size and recipient limits, two
@@ -548,9 +246,9 @@ This project follows [Semantic Versioning](https://semver.org/). The public inte
 semver applies to is:
 
 - **Environment variables** — the configuration surface documented in
-  [Configuration](#configuration).
+  [Configuration](docs/configuration.md).
 - **SMTP reply-code behavior** — the mapping documented in
-  [How the relay answers your client](#how-the-relay-answers-your-client).
+  [How the relay answers your client](docs/operations.md#how-the-relay-answers-your-client).
 - **Published image tags** — the tags described below.
 
 Go packages under `internal/` are **not** part of that interface: Go's own visibility rules
@@ -575,25 +273,14 @@ line carries a `version` field.
 
 ## Contributing
 
-Issues and pull requests are welcome. Before opening a PR:
-
-- [ ] `make test` passes
-- [ ] `make lint` passes
-- [ ] New behavior has a test that fails without the change
-- [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
-
-For questions or ideas, open an issue rather than a PR.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, linting, commit
+conventions, and the release process.
 
 ---
 
 ## Security
 
-Do not report security issues in a public issue. Email the maintainer instead.
-
-The relay is designed to hold secrets and refuse to leak them: tokens and passwords are
-redacted from configuration dumps, never written to logs, and the Worker compares its shared
-secret in constant time. Run it on a private network; it has no TLS requirement because it is
-not meant to be exposed to the internet.
+See [SECURITY.md](SECURITY.md) for how to report a vulnerability.
 
 ---
 

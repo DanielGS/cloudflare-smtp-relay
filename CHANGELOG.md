@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- README split into a short pitch/quick-start plus focused reference docs:
+  `CONTRIBUTING.md`, `SECURITY.md`, `docs/cloudflare-setup.md`,
+  `docs/configuration.md`, `docs/operations.md`.
+- Quick start now fetches `examples/docker-compose.yml` with `curl` and runs
+  the published image directly, instead of cloning the repository and
+  building from source.
+
 ## [1.0.1] - 2026-09-22
 
 ### Added
