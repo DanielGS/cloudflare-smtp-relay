@@ -46,6 +46,13 @@ flowchart LR
     style cf fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:4 3,color:#334155
 ```
 
+> **Send mail from your own domain on Cloudflare's free tier, without paying for Email Sending.**
+>
+> If you already have **Email Routing** configured, you can send to your verified destination
+> addresses at no cost, on any plan. Cloudflare's SMTP endpoint cannot reach that free path —
+> only the HTTP surfaces can. This relay puts SMTP back in front of it, so your applications
+> keep speaking the protocol they already speak.
+
 One process, no database, no queue. Your application keeps sending SMTP; the Cloudflare token
 lives in exactly one place.
 
@@ -74,17 +81,60 @@ lives in exactly one place.
 
 ## Why this exists
 
-Cloudflare's own SMTP endpoint (`smtp.mx.cloudflare.net:465`) requires a domain onboarded to
-Email Sending, which is gated behind the Workers Paid plan. The HTTP surface can deliver to
-verified destination addresses for free.
+### Email Routing is free. Email Sending is not.
 
-So this relay translates one to the other, and picks up three things along the way:
+Cloudflare has two ways to send mail, and the difference decides whether your side project
+costs nothing or five dollars a month.
+
+| | Reaches | Costs |
+|---|---|---|
+| **Email Routing** — REST API or Workers `send_email` binding | Your **verified destination addresses** | Free, on any plan |
+| **Email Sending** — arbitrary recipients | Anyone | Workers Paid, from $5/month |
+
+Cloudflare documents the free path plainly:
+
+> You can also send to verified destination addresses directly through the REST API or the
+> Workers binding, free of charge on any plan — including when only Email Routing is
+> configured.
+>
+> — [Cloudflare docs, Email Routing addresses](https://developers.cloudflare.com/email-service/configuration/email-routing-addresses/)
+
+### But SMTP cannot reach it
+
+That free path exists **only over HTTP**. Cloudflare's SMTP endpoint
+(`smtp.mx.cloudflare.net:465`) has no free tier at all: it requires a domain onboarded to Email
+Sending, with no exception for verified destinations. Point an application at it on a free plan
+and you get:
+
+```
+550 5.7.1 Email sending is not enabled for domain yourdomain.example
+```
+
+So applications that only speak SMTP — which is most of them — are locked out of a capability
+their account already has.
+
+### What this relay does about it
+
+It accepts SMTP on your private network and forwards over HTTPS, which is the surface that can
+use the free path. Your application does not change; it keeps sending SMTP to a host and port.
 
 | Problem | What the relay does |
 |---|---|
 | Your app only speaks SMTP | Accepts SMTP submission, speaks HTTPS upstream |
+| The free path is HTTP-only | Uses the REST API, or a Worker when your account lacks REST entitlement |
 | The Cloudflare token would be copied into every app | Keeps it in one process |
 | Any app could send as any domain | Enforces a sender-domain allowlist centrally |
+
+### Is this for you?
+
+**Yes, if** you self-host side projects that email *you* — backup reports, cron failures, alerts,
+a contact form that lands in your own inbox — from a domain you already run on Cloudflare.
+That is exactly what the free tier covers, and this relay is built for it.
+
+**No, if** you need to email arbitrary recipients: customers, newsletter subscribers, users
+signing up. Those addresses cannot be verified destinations, so you need Email Sending on the
+Workers Paid plan. The relay still works there — set `CLOUDFLARE_TRANSPORT=rest` — but it is
+not solving a billing problem for you, just an SMTP one.
 
 ---
 
@@ -298,7 +348,7 @@ Every setting comes from an environment variable. Nothing is baked into the imag
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ALLOWED_FROM_DOMAINS` | empty | Comma-separated. Empty means any sender. Matching is **exact**: `subdomain.mydomainexample.com` does not permit `mydomainexample.com`. |
+| `ALLOWED_FROM_DOMAINS` | empty | Comma-separated; spaces, case and duplicates are normalized away. Empty means any sender. Matching is **exact**, with no wildcards and no subdomain inheritance: `mydomainexample.com` does not permit `notifications.mydomainexample.com`. List every domain. |
 | `HEALTH_HOST` / `HEALTH_PORT` | `0.0.0.0` / `8080` | |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`. |
 
