@@ -43,15 +43,15 @@ relay sends to the REST API:
 
 ```json
 {
-  "from": { "address": "no-reply@tasks.example.com", "name": "Tasks" },
+  "from": { "address": "no-reply@subdomain.mydomainexample.com", "name": "Notifications" },
   "to":   [{ "address": "ops@example.com" }],
   "cc":   [],
   "bcc":  [],
-  "reply_to": "support@example.com",
+  "reply_to": "support@mydomainexample.com",
   "subject": "Nightly report",
   "text": "plain text body",
   "html": "<p>html body</p>",
-  "headers": { "X-Source": "tasks" }
+  "headers": { "X-Source": "relay" }
 }
 ```
 

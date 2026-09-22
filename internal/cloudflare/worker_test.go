@@ -67,7 +67,7 @@ func TestWorker_SuccessfulSend(t *testing.T) {
 	}
 
 	from := gotBody["from"].(map[string]any)
-	if from["address"] != "support@yourdomain.com" || from["name"] != "Support Team" {
+	if from["address"] != "support@mydomainexample.com" || from["name"] != "Support Team" {
 		t.Errorf("from = %v, want display name carried through", from)
 	}
 	if _, ok := from["email"]; ok {

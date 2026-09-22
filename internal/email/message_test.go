@@ -10,13 +10,13 @@ func TestAddress_Domain(t *testing.T) {
 	}{
 		{
 			name: "lowercase domain",
-			addr: Address{Address: "user@midominio.com"},
-			want: "midominio.com",
+			addr: Address{Address: "user@mydomainexample.com"},
+			want: "mydomainexample.com",
 		},
 		{
 			name: "uppercase domain is lowered",
-			addr: Address{Address: "user@MiDominio.COM"},
-			want: "midominio.com",
+			addr: Address{Address: "user@MyDomainExample.COM"},
+			want: "mydomainexample.com",
 		},
 		{
 			name: "no @ yields empty domain",
@@ -30,8 +30,8 @@ func TestAddress_Domain(t *testing.T) {
 		},
 		{
 			name: "quoted local part containing @ still resolves the last @ as the domain separator",
-			addr: Address{Address: `"a@b"@midominio.com`},
-			want: "midominio.com",
+			addr: Address{Address: `"a@b"@mydomainexample.com`},
+			want: "mydomainexample.com",
 		},
 	}
 
@@ -52,13 +52,13 @@ func TestAddress_String(t *testing.T) {
 	}{
 		{
 			name: "no display name falls back to the bare address",
-			addr: Address{Address: "user@midominio.com"},
-			want: "user@midominio.com",
+			addr: Address{Address: "user@mydomainexample.com"},
+			want: "user@mydomainexample.com",
 		},
 		{
 			name: "display name is rendered before the bracketed address",
-			addr: Address{Name: "Alice Smith", Address: "alice@midominio.com"},
-			want: "Alice Smith <alice@midominio.com>",
+			addr: Address{Name: "Alice Smith", Address: "alice@mydomainexample.com"},
+			want: "Alice Smith <alice@mydomainexample.com>",
 		},
 	}
 

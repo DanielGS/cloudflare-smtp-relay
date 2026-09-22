@@ -10,16 +10,16 @@ func crlf(s string) []byte {
 }
 
 func TestParse_BarePlainText(t *testing.T) {
-	raw := crlf(`From: Alice <alice@midominio.com>
+	raw := crlf(`From: Alice <alice@mydomainexample.com>
 To: Bob <bob@example.com>
 Subject: Hello there
-Message-ID: <abc123@midominio.com>
+Message-ID: <abc123@mydomainexample.com>
 Date: Mon, 02 Jan 2006 15:04:05 -0700
 
 Hello, this is the body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -27,8 +27,8 @@ Hello, this is the body.
 	if msg.Subject != "Hello there" {
 		t.Errorf("Subject = %q, want %q", msg.Subject, "Hello there")
 	}
-	if msg.RFCMessageID != "abc123@midominio.com" {
-		t.Errorf("RFCMessageID = %q, want %q", msg.RFCMessageID, "abc123@midominio.com")
+	if msg.RFCMessageID != "abc123@mydomainexample.com" {
+		t.Errorf("RFCMessageID = %q, want %q", msg.RFCMessageID, "abc123@mydomainexample.com")
 	}
 	if !strings.Contains(msg.Text, "Hello, this is the body.") {
 		t.Errorf("Text = %q, want it to contain the body", msg.Text)
@@ -51,7 +51,7 @@ Hello, this is the body.
 }
 
 func TestParse_BareHTML(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: bob@example.com
 Subject: HTML only
 Content-Type: text/html; charset=utf-8
@@ -59,7 +59,7 @@ Content-Type: text/html; charset=utf-8
 <p>Hello HTML</p>
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -73,7 +73,7 @@ Content-Type: text/html; charset=utf-8
 }
 
 func TestParse_MultipartAlternative(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: bob@example.com
 Subject: Alt
 Content-Type: multipart/alternative; boundary="BOUND1"
@@ -89,7 +89,7 @@ Content-Type: text/html; charset=utf-8
 --BOUND1--
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -103,7 +103,7 @@ Content-Type: text/html; charset=utf-8
 }
 
 func TestParse_MultipartMixedWrappingAlternative(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: bob@example.com
 Subject: Mixed
 Content-Type: multipart/mixed; boundary="OUTER"
@@ -129,7 +129,7 @@ JVBERi0xLjQK
 --OUTER--
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -143,13 +143,13 @@ JVBERi0xLjQK
 }
 
 func TestParse_EmptyBodyIsNotAnError(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: bob@example.com
 Subject: No body
 
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v, want nil for a headers-only message", err)
 	}
@@ -166,21 +166,21 @@ func TestParse_UnparseableInputReturnsError(t *testing.T) {
 	// is not a parseable RFC 5322 message.
 	raw := []byte("this is not a mime message at all, no headers, no body separator")
 
-	_, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	_, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err == nil {
 		t.Fatal("Parse() error = nil, want an error for unparseable input")
 	}
 }
 
 func TestParse_SubjectIsMIMEWordDecoded(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: bob@example.com
 Subject: =?UTF-8?B?SG9sYSBtdW5kbw==?=
 
 Body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -190,46 +190,46 @@ Body.
 }
 
 func TestParse_ReplyTo(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: bob@example.com
 Subject: Reply-To test
-Reply-To: support@midominio.com
+Reply-To: support@mydomainexample.com
 
 Body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if !strings.Contains(msg.ReplyTo, "support@midominio.com") {
-		t.Errorf("ReplyTo = %q, want it to contain %q", msg.ReplyTo, "support@midominio.com")
+	if !strings.Contains(msg.ReplyTo, "support@mydomainexample.com") {
+		t.Errorf("ReplyTo = %q, want it to contain %q", msg.ReplyTo, "support@mydomainexample.com")
 	}
 }
 
 func TestParse_HeadersExcludesRebuiltAndFramingHeaders(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: bob@example.com
 Cc: carol@example.com
 Subject: Headers test
-Message-ID: <keep-me-out@midominio.com>
-Reply-To: support@midominio.com
+Message-ID: <keep-me-out@mydomainexample.com>
+Reply-To: support@mydomainexample.com
 Date: Mon, 02 Jan 2006 15:04:05 -0700
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Received: from mx.example.com by relay.example.com
-Return-Path: <alice@midominio.com>
+Return-Path: <alice@mydomainexample.com>
 X-Custom-Header: custom-value
-In-Reply-To: <parent@midominio.com>
-References: <parent@midominio.com>
-List-Unsubscribe: <mailto:unsub@midominio.com>
+In-Reply-To: <parent@mydomainexample.com>
+References: <parent@mydomainexample.com>
+List-Unsubscribe: <mailto:unsub@mydomainexample.com>
 
 Body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com", "carol@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com", "carol@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -247,9 +247,9 @@ Body.
 
 	kept := map[string]string{
 		"X-Custom-Header":  "custom-value",
-		"In-Reply-To":      "<parent@midominio.com>",
-		"References":       "<parent@midominio.com>",
-		"List-Unsubscribe": "<mailto:unsub@midominio.com>",
+		"In-Reply-To":      "<parent@mydomainexample.com>",
+		"References":       "<parent@mydomainexample.com>",
+		"List-Unsubscribe": "<mailto:unsub@mydomainexample.com>",
 	}
 	for key, want := range kept {
 		got, ok := msg.Headers[key]
@@ -264,20 +264,20 @@ Body.
 }
 
 func TestParse_FromUsesEnvelopeAddressAndAdoptsHeaderDisplayName(t *testing.T) {
-	raw := crlf(`From: Alice Smith <alice@midominio.com>
+	raw := crlf(`From: Alice Smith <alice@mydomainexample.com>
 To: bob@example.com
 Subject: From precedence
 
 Body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if msg.From.Address != "alice@midominio.com" {
-		t.Errorf("From.Address = %q, want %q", msg.From.Address, "alice@midominio.com")
+	if msg.From.Address != "alice@mydomainexample.com" {
+		t.Errorf("From.Address = %q, want %q", msg.From.Address, "alice@mydomainexample.com")
 	}
 	if msg.From.Name != "Alice Smith" {
 		t.Errorf("From.Name = %q, want %q", msg.From.Name, "Alice Smith")
@@ -292,13 +292,13 @@ Subject: From precedence mismatch
 Body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if msg.From.Address != "alice@midominio.com" {
-		t.Errorf("From.Address = %q, want the envelope address %q", msg.From.Address, "alice@midominio.com")
+	if msg.From.Address != "alice@mydomainexample.com" {
+		t.Errorf("From.Address = %q, want the envelope address %q", msg.From.Address, "alice@mydomainexample.com")
 	}
 	if msg.From.Name == "Spoofed Name" {
 		t.Errorf("From.Name = %q, must not adopt the mismatched header display name", msg.From.Name)
@@ -306,7 +306,7 @@ Body.
 }
 
 func TestParse_RecipientSplit_ToAndCcFromHeaders(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: Bob <bob@example.com>
 Cc: Carol <carol@example.com>
 Subject: Split test
@@ -314,7 +314,7 @@ Subject: Split test
 Body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com", "carol@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com", "carol@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -331,7 +331,7 @@ Body.
 }
 
 func TestParse_RecipientSplit_BlindRecipientLandsInBccOnly(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: Bob <bob@example.com>
 Cc: Carol <carol@example.com>
 Subject: BCC test
@@ -339,7 +339,7 @@ Subject: BCC test
 Body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{
 		"bob@example.com", "carol@example.com", "dave-blind@example.com",
 	})
 	if err != nil {
@@ -363,13 +363,13 @@ Body.
 }
 
 func TestParse_RecipientSplit_NoToOrCcHeaderFallsBackToTo(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 Subject: No recipient headers at all
 
 Body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com", "carol@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com", "carol@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -383,7 +383,7 @@ Body.
 }
 
 func TestParse_RecipientSplit_Deduplicated(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: Bob <bob@example.com>
 Subject: Dedup test
 
@@ -392,7 +392,7 @@ Body.
 
 	// The envelope repeats the same recipient (case-varied); it must not be
 	// duplicated across the delivery lists.
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com", "Bob@Example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com", "Bob@Example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -403,14 +403,14 @@ Body.
 }
 
 func TestParse_RecipientSplit_CaseInsensitiveMatch(t *testing.T) {
-	raw := crlf(`From: alice@midominio.com
+	raw := crlf(`From: alice@mydomainexample.com
 To: Bob <Bob@Example.com>
 Subject: Case test
 
 Body.
 `)
 
-	msg, err := Parse(raw, "alice@midominio.com", []string{"bob@example.com"})
+	msg, err := Parse(raw, "alice@mydomainexample.com", []string{"bob@example.com"})
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}

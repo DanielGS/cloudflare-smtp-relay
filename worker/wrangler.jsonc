@@ -12,13 +12,13 @@
       "name": "EMAIL"
     }
     // Single fixed destination:
-    // { "name": "EMAIL", "destination_address": "ops@yourdomain.com" }
+    // { "name": "EMAIL", "destination_address": "ops@mydomainexample.com" }
     //
     // Explicit allowlist:
-    // { "name": "EMAIL", "allowed_destination_addresses": ["a@x.com", "b@x.com"] }
+    // { "name": "EMAIL", "allowed_destination_addresses": ["ops@mydomainexample.com", "alerts@mydomainexample.com"] }
     //
     // Restrict which senders may be used:
-    // { "name": "EMAIL", "allowed_sender_addresses": ["no-reply@tasks.yourdomain.com"] }
+    // { "name": "EMAIL", "allowed_sender_addresses": ["no-reply@subdomain.mydomainexample.com"] }
   ],
 
   "observability": {

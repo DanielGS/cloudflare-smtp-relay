@@ -29,10 +29,10 @@ Cloudflare-side setup is required regardless of this relay.
 ### 1. Enable Email Routing on the exact sending domain
 
 A subdomain does **not** inherit Email Routing from the apex domain. If you intend to send from
-`tasks.example.com`, add it explicitly:
+`subdomain.mydomainexample.com`, add it explicitly:
 
-Dashboard → **Email Routing** on `example.com` → **Settings** → **Subdomains** → add
-`tasks.example.com`. Cloudflare adds the required DNS records.
+Dashboard → **Email Routing** on `mydomainexample.com` → **Settings** → **Subdomains** → add
+`subdomain.mydomainexample.com`. Cloudflare adds the required DNS records.
 
 This is the most common cause of `Email sending is not enabled for domain …`.
 
@@ -54,7 +54,7 @@ curl -i "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/email/send
   -H "Authorization: Bearer $CF_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "from": "no-reply@tasks.example.com",
+    "from": "no-reply@subdomain.mydomainexample.com",
     "to": "your-verified-destination@example.com",
     "subject": "relay probe",
     "text": "probe"
@@ -103,7 +103,7 @@ SMTP_HOST=smtp-cloudflare-relay
 SMTP_PORT=2525
 SMTP_USER=relay
 SMTP_PASSWORD=change-me
-EMAIL_FROM=no-reply@tasks.example.com
+EMAIL_FROM=no-reply@subdomain.mydomainexample.com
 ```
 
 No TLS is needed on this hop: the traffic never leaves the Docker network. The relay still
@@ -146,7 +146,7 @@ Every setting comes from an environment variable. Nothing is baked into the imag
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ALLOWED_FROM_DOMAINS` | empty | Comma-separated. Empty means any sender. Matching is **exact**: `tasks.example.com` does not permit `example.com`. |
+| `ALLOWED_FROM_DOMAINS` | empty | Comma-separated. Empty means any sender. Matching is **exact**: `subdomain.mydomainexample.com` does not permit `mydomainexample.com`. |
 | `HEALTH_HOST` / `HEALTH_PORT` | `0.0.0.0` / `8080` | |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`. |
 
@@ -191,7 +191,7 @@ rejected):
   "msg": "delivery",
   "message_id": "0b0f8f2c-9a6c-4f5c-8f5a-1d2e3f4a5b6c",
   "rfc_message_id": "20260922074112.1@app.internal",
-  "from": "no-reply@tasks.example.com",
+  "from": "no-reply@subdomain.mydomainexample.com",
   "to": ["ops@example.com"],
   "subject": "Nightly report",
   "result": "sent",
@@ -246,7 +246,7 @@ From a container on the `mail` network, using `swaks`:
 docker run --rm --network mail instrumentisto/swaks \
   --server smtp-cloudflare-relay:2525 \
   --auth PLAIN --auth-user relay --auth-password change-me \
-  --from no-reply@tasks.example.com \
+  --from no-reply@subdomain.mydomainexample.com \
   --to your-verified-destination@example.com \
   --header "Subject: relay test" \
   --body "hello from the relay"

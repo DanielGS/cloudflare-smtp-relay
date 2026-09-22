@@ -26,43 +26,43 @@ func TestSenderPolicy_Allows(t *testing.T) {
 		},
 		{
 			name:    "exact domain match is allowed",
-			domains: []string{"midominio.com"},
-			from:    Address{Address: "user@midominio.com"},
+			domains: []string{"mydomainexample.com"},
+			from:    Address{Address: "user@mydomainexample.com"},
 			want:    true,
 		},
 		{
 			name:    "matching is case-insensitive on the domain",
-			domains: []string{"MiDominio.COM"},
-			from:    Address{Address: "user@midominio.com"},
+			domains: []string{"MyDomainExample.COM"},
+			from:    Address{Address: "user@mydomainexample.com"},
 			want:    true,
 		},
 		{
 			name:    "matching is case-insensitive on the sender address too",
-			domains: []string{"midominio.com"},
-			from:    Address{Address: "user@MIDOMINIO.COM"},
+			domains: []string{"mydomainexample.com"},
+			from:    Address{Address: "user@MYDOMAINEXAMPLE.COM"},
 			want:    true,
 		},
 		{
 			name:    "a subdomain does not inherit its parent domain's allowance",
-			domains: []string{"tasks.midominio.com"},
-			from:    Address{Address: "user@midominio.com"},
+			domains: []string{"subdomain.mydomainexample.com"},
+			from:    Address{Address: "user@mydomainexample.com"},
 			want:    false,
 		},
 		{
 			name:    "an unrelated address sharing a domain suffix is rejected",
-			domains: []string{"tasks.midominio.com"},
-			from:    Address{Address: "user@evil-tasks.midominio.com"},
+			domains: []string{"subdomain.mydomainexample.com"},
+			from:    Address{Address: "user@evil-subdomain.mydomainexample.com"},
 			want:    false,
 		},
 		{
 			name:    "a domain outside the allowlist is rejected",
-			domains: []string{"midominio.com"},
+			domains: []string{"mydomainexample.com"},
 			from:    Address{Address: "user@otherdomain.com"},
 			want:    false,
 		},
 		{
 			name:    "an address with no domain part is rejected when an allowlist is configured",
-			domains: []string{"midominio.com"},
+			domains: []string{"mydomainexample.com"},
 			from:    Address{Address: "no-domain-here"},
 			want:    false,
 		},
@@ -79,14 +79,14 @@ func TestSenderPolicy_Allows(t *testing.T) {
 }
 
 func TestSenderPolicy_Check_Allowed(t *testing.T) {
-	p := NewSenderPolicy([]string{"midominio.com"})
-	if err := p.Check(Address{Address: "user@midominio.com"}); err != nil {
+	p := NewSenderPolicy([]string{"mydomainexample.com"})
+	if err := p.Check(Address{Address: "user@mydomainexample.com"}); err != nil {
 		t.Fatalf("Check() = %v, want nil", err)
 	}
 }
 
 func TestSenderPolicy_Check_Rejected(t *testing.T) {
-	p := NewSenderPolicy([]string{"midominio.com"})
+	p := NewSenderPolicy([]string{"mydomainexample.com"})
 	from := Address{Address: "user@evil.com"}
 
 	err := p.Check(from)

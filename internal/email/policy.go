@@ -7,8 +7,8 @@ import "fmt"
 // The allowlist is opt-in: a policy built from an empty or nil domain list
 // allows every sender. Matching is exact and case-insensitive on the domain
 // part only. A configured domain never matches its subdomains or its parent
-// domain, so "tasks.midominio.com" does not permit "midominio.com" and does
-// not permit "evil-tasks.midominio.com" either.
+// domain, so "subdomain.mydomainexample.com" does not permit "mydomainexample.com" and does
+// not permit "evil-subdomain.mydomainexample.com" either.
 type SenderPolicy struct {
 	allowed map[string]struct{}
 }

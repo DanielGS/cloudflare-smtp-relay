@@ -23,7 +23,7 @@ func noopSleep(ctx context.Context, d time.Duration) error {
 
 func baseMessage() *email.Message {
 	return &email.Message{
-		From:    email.Address{Name: "Support Team", Address: "support@yourdomain.com"},
+		From:    email.Address{Name: "Support Team", Address: "support@mydomainexample.com"},
 		To:      []email.Address{{Name: "Jane Doe", Address: "jane@example.com"}},
 		Subject: "hello",
 		Text:    "plain body",
@@ -85,7 +85,7 @@ func TestREST_SuccessfulSend(t *testing.T) {
 	}
 
 	from := gotBody["from"].(map[string]any)
-	if from["address"] != "support@yourdomain.com" || from["name"] != "Support Team" {
+	if from["address"] != "support@mydomainexample.com" || from["name"] != "Support Team" {
 		t.Errorf("from = %v, want display name carried through", from)
 	}
 	to := gotBody["to"].([]any)[0].(map[string]any)

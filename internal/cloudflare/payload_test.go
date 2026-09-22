@@ -10,7 +10,7 @@ import (
 
 func TestBuildPayload_AddressKeyNotEmail(t *testing.T) {
 	msg := &email.Message{
-		From:    email.Address{Name: "Support Team", Address: "support@yourdomain.com"},
+		From:    email.Address{Name: "Support Team", Address: "support@mydomainexample.com"},
 		To:      []email.Address{{Name: "Jane Doe", Address: "jane@example.com"}},
 		Subject: "hello",
 		Text:    "body",
@@ -97,7 +97,7 @@ func TestBuildPayload_ReplyToIsSnakeCase(t *testing.T) {
 	msg := &email.Message{
 		From:    email.Address{Address: "noreply@example.com"},
 		To:      []email.Address{{Address: "jane@example.com"}},
-		ReplyTo: "support@example.com",
+		ReplyTo: "support@mydomainexample.com",
 		Subject: "hello",
 		Text:    "body",
 	}
@@ -107,7 +107,7 @@ func TestBuildPayload_ReplyToIsSnakeCase(t *testing.T) {
 		t.Fatalf("Marshal() error = %v", err)
 	}
 	body := string(raw)
-	if !strings.Contains(body, `"reply_to":"support@example.com"`) {
+	if !strings.Contains(body, `"reply_to":"support@mydomainexample.com"`) {
 		t.Errorf("expected snake_case \"reply_to\" key, got: %s", body)
 	}
 	if strings.Contains(body, `"replyTo"`) {
