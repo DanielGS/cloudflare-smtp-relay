@@ -196,3 +196,33 @@ func TestDelivery_LevelForUnknownResultDefaultsToInfo(t *testing.T) {
 		t.Fatalf("expected an unrecognized result to default to INFO, got %v", decoded["level"])
 	}
 }
+
+func TestDelivery_DurationIsReportedInMilliseconds(t *testing.T) {
+	var buf bytes.Buffer
+	logger, err := New("info", &buf)
+	if err != nil {
+		t.Fatalf("New returned unexpected error: %v", err)
+	}
+
+	LogDelivery(logger, Delivery{
+		MessageID: "relay-9",
+		Result:    "sent",
+		Duration:  1500 * time.Millisecond,
+	})
+
+	decoded := decodeDeliveryLog(t, &buf)
+
+	// The field name is part of the documented log contract, and a raw
+	// slog.Duration would emit nanoseconds under a "duration" key instead.
+	if _, ok := decoded["duration"]; ok {
+		t.Fatalf("expected no raw \"duration\" key, got: %v", decoded)
+	}
+
+	got, ok := decoded["duration_ms"]
+	if !ok {
+		t.Fatalf("expected a \"duration_ms\" key, got: %v", decoded)
+	}
+	if got != float64(1500) {
+		t.Fatalf("expected duration_ms 1500, got %v", got)
+	}
+}

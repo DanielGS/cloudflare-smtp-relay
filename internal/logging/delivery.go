@@ -66,7 +66,9 @@ func LogDelivery(logger *slog.Logger, d Delivery) {
 		slog.Any("to", d.To),
 		slog.String("subject", TruncateSubject(d.Subject, maxSubjectRunes)),
 		slog.String("result", d.Result),
-		slog.Duration("duration", d.Duration),
+		// Emitted in milliseconds rather than as a raw slog.Duration, which
+		// would render as a bare nanosecond integer and read poorly in a log.
+		slog.Int64("duration_ms", d.Duration.Milliseconds()),
 		slog.Int("attempts", d.Attempts),
 	}
 
